@@ -1,117 +1,69 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Figure-Eight Atomic Fields</title>
   <style>
-    body {
-      background: #05070d;
-      color: white;
-      font-family: Georgia, serif;
-      text-align: center;
-      padding: 60px 20px;
-    }
-    a {
-      display: block;
-      max-width: 360px;
-      margin: 20px auto;
-      padding: 24px;
-      border: 1px solid #475569;
-      border-radius: 14px;
-      text-decoration: none;
-      color: white;
-      font-size: 22px;
-    }
-    a:hover {
-      background: #172033;
-    }
-    p { color: #a5b4c7; }
+    * { box-sizing: border-box; }
+    body { background:#05070d; color:#f2f5fb; font-family:Georgia,serif; text-align:center; margin:0; padding:55px 20px; }
+    main { max-width:770px; margin:auto; }
+    h1 { font-size:clamp(30px,5vw,45px); margin-bottom:12px; }
+    .subtitle { color:#afbbce; font-size:18px; line-height:1.5; }
+    .disclaimer { text-align:left; background:#111827; border:1px solid #334155; border-left:4px solid #f2c14e; border-radius:10px; padding:18px 22px; margin:30px auto 32px; line-height:1.6; }
+    .disclaimer h2 { font:600 16px system-ui,sans-serif; margin:0 0 10px; color:#f2c14e; }
+    .disclaimer p { margin:0 0 10px; color:#d5deec; }
+    .disclaimer p:last-child { margin-bottom:0; }
+    .choices { display:grid; gap:14px; }
+    .choices a { display:block; padding:22px; color:#fff; border:1px solid #475569; border-radius:12px; text-decoration:none; font-size:22px; background:#0e1524; }
+    .choices a:hover,.choices a:focus-visible { background:#1b2b44; border-color:#f2c14e; }
+    .choices small { display:block; color:#aabbd0; font:13px system-ui,sans-serif; margin-top:5px; }
+    footer { margin-top:35px; color:#93a5bd; font:13px/1.6 system-ui,sans-serif; }
   </style>
-</head>
-  
-<!-- ===== COMBINED VISITOR ANALYTICS ===== -->
-
-<!-- 1. Cloudflare Web Analytics -->
-<script
-  type="module"
-  src="https://static.cloudflareinsights.com/beacon.min.js"
-  data-cf-beacon='{"token":"ac2f9cce777f4e87b342f7e56f71bef3"}'>
-</script>
-
-<!-- 2. Custom Google Apps Script Analytics -->
-<script>
-(() => {
-  const ENDPOINT =
-    'https://script.google.com/macros/s/AKfycbwU6LV41rrbbRiBnw6jvKNZZhCvbJspd2CKLUIov1TqQsRmZVSRFAzLrkYXcvWQ9TY3/exec';
-
-  const start = Date.now();
-  let interacted = false;
-  let sent = false;
-
-  // Detect visitor interaction
-  const markInteraction = () => {
-    interacted = true;
-  };
-
-  ['mousedown', 'touchstart', 'wheel', 'keydown']
-    .forEach(eventName => {
-      addEventListener(eventName, markInteraction, {
-        once: true,
-        passive: true
+  <!-- Cloudflare Web Analytics -->
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"ac2f9cce777f4e87b342f7e56f71bef3"}'></script>
+  <!-- Existing Google Apps Script visit tracking -->
+  <script>
+  (() => {
+    const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwU6LV41rrbbRiBnw6jvKNZZhCvbJspd2CKLUIov1TqQsRmZVSRFAzLrkYXcvWQ9TY3/exec';
+    const start = Date.now();
+    let interacted = false, sent = false;
+    ['mousedown','touchstart','wheel','keydown'].forEach(ev =>
+      addEventListener(ev, () => { interacted = true; }, { once:true, passive:true })
+    );
+    function send() {
+      if (sent) return;
+      const payload = JSON.stringify({
+        page: location.pathname + location.search,
+        ms: Date.now() - start,
+        interacted,
+        ref: document.referrer || null,
+        ts: new Date().toISOString()
       });
-    });
-
-  function sendAnalytics() {
-    if (sent) return;
-
-    const payload = JSON.stringify({
-      page: location.pathname + location.search,
-      ms: Date.now() - start,
-      interacted: interacted,
-      ref: document.referrer || null,
-      ts: new Date().toISOString()
-    });
-
-    if (navigator.sendBeacon(ENDPOINT, payload)) {
-      sent = true;
+      if (navigator.sendBeacon(ENDPOINT, payload)) sent = true;
     }
-  }
-
-  // Record visit when page becomes hidden
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      sendAnalytics();
-    }
-  });
-
-  // Fallback when visitor leaves
-  addEventListener('pagehide', sendAnalytics);
-})();
-</script>
-
-<!-- ===== END COMBINED ANALYTICS ===== -->
-
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') send();
+    });
+    addEventListener('pagehide', send);
+  })();
+  </script>
+</head>
 <body>
+<main>
   <h1>Figure-Eight Atomic Fields</h1>
-  <p>Interactive quantum-inspired
-     geometric visualizations</p>
-
-  <a href="sodium.html">
-    Sodium · 11 e⁻
-  </a>
-
-  <a href="krypton.html">
-    Krypton · 36 e⁻
-  </a>
-
-  <a href="gold.html">
-    Gold · 79 e⁻
-  </a>
-
-  <p>Explore nested fields, particle streams,
-     and asynchronous three-dimensional motion.</p>
+  <p class="subtitle">Interactive, quantum-inspired geometric artwork exploring nested figure-eight fields and asynchronous three-dimensional motion.</p>
+  <section class="disclaimer" aria-label="Scientific visualization disclaimer">
+    <h2>Scientific visualization disclaimer</h2>
+    <p>These animations are purely artistic and conceptual representations of atomic structure. Their figure-eight shapes, colors, rotating particle streams, and probability inspired effects are mostly stylistic choices of electron trajectories and quantum wavefunctions</p>
+    <p>Electron counts and shell populations correspond to the named elements. The animated geometry is illustrative, not physically predictive.</p>
+  </section>
+  <nav class="choices" aria-label="Choose an atomic animation">
+    <a href="Sodium.html">Sodium · 11 e⁻<small>Three occupied electron shells</small></a>
+    <a href="Krypton.html">Krypton · 36 e⁻<small>Four occupied electron shells</small></a>
+    <a href="gold.html">Gold · 79 e⁻<small>Six occupied electron shells</small></a>
+  </nav>
+  <footer>Figure-eight field visualizations · Conceptual artwork</footer>
+</main>
 </body>
 </html>
