@@ -1,2 +1,2 @@
-# -figure-eight-atomic-fields
+# Figure-eight-atomic-fields
 Interactive 3D figure-eight atomic field visualizations
