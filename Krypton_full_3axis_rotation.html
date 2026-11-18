@@ -1,0 +1,526 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Krypton · 36 e⁻</title>
+<style>
+  body{background:#05070d;color:#e8eef7;font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .panel{position:absolute;background:rgba(10,14,22,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px}
+  #legend{top:16px;right:16px;font-size:12px}
+  .row{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .sw{width:12px;height:12px;border-radius:50%;flex-shrink:0;box-shadow:0 0 10px currentColor}
+  .pw{display:inline-block;width:22px;height:10px;position:relative;flex-shrink:0;border-radius:999px}
+  .pw::after{content:'';position:absolute;inset:0;border-radius:999px;border:1px solid currentColor;opacity:0.3;box-shadow:0 0 6px currentColor}
+  .pw::before{content:'';position:absolute;top:3px;left:4px;width:1.5px;height:1.5px;background:currentColor;border-radius:50%;z-index:1;box-shadow:3px 1px 0 currentColor,6px 3px 0 currentColor,9px 0px 0 currentColor,12px 2px 0 currentColor,15px 3px 0 currentColor,3px 4px 0 currentColor,10px 4px 0 currentColor,14px 4px 0 currentColor}
+  #controls{bottom:16px;left:16px;font-size:12px;color:#8aa0bd}
+  kbd{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;color:#e8eef7;font-family:inherit;font-size:11px}
+</style>
+<div id="app"></div>
+<div id="legend" class="panel" style="max-width:240px">
+  <div style="font-family:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;font-size:15px;margin-bottom:2px">Krypton</div>
+  <div style="font-family:ui-monospace,monospace;font-size:10px;color:#8aa0bd;letter-spacing:0.08em;margin-bottom:10px">Kr · Z = 36 · 2, 8, 18, 8</div>
+  <div class="row"><span class="sw" style="background:#ffffff;color:#ffffff;box-shadow:0 0 36px #ffffff, 0 0 16px #ffffff, 0 0 6px #ffffff"></span>Nexus · nucleus + 1s² cloud (36 p⁺ + neutrons + 2 inner e⁻)</div>
+  <div class="row"><span class="sw" style="background:#c084fc;color:#c084fc;box-shadow:0 0 14px #c084fc, 0 0 6px #c084fc"></span>L shell · 8 e⁻</div>
+  <div class="row"><span class="sw" style="background:#22C55E;color:#22C55E;box-shadow:0 0 14px #22C55E, 0 0 6px #22C55E"></span>M shell · 18 e⁻</div>
+  <div class="row"><span class="sw" style="background:#f97316;color:#f97316;box-shadow:0 0 14px #f97316, 0 0 6px #f97316"></span>N shell · 8 e⁻ (noble · closed)</div>
+  <div style="margin-top:12px;padding-top:9px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#b8c4d6;line-height:1.5">
+    <div style="color:#e8eef7;margin-bottom:3px">Quantum-probabilistic</div>
+    Each particle samples where the electron might be found (|ψ|²). Four nested shells (white → purple → green → orange), each rotating at half the speed of the one inside with its own tilted spin axis.
+    <div style="color:#8aa0bd;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.04em;margin-top:5px">density = probability · filled valence · noble gas</div>
+  </div>
+</div>
+<div id="controls" class="panel"><kbd>drag</kbd> orbit · <kbd>scroll</kbd> zoom</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 200);
+  const CAM_START = new THREE.Vector3(0, 0.3, -14);
+  const CAM_END   = new THREE.Vector3(-45, 24, 22);
+  cam.position.copy(CAM_START);
+  const INTRO_MS = 7000;
+  let introT0 = null;
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x05070d, 1);
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  const phi = (1 + Math.sqrt(5)) / 2;
+
+  const BASE_TUMBLE     = 0.021;
+  const BASE_FLOW       = 0.0028;
+  const PRECESSION_RATE = BASE_FLOW / phi;
+
+  const controls = new THREE.OrbitControls(cam, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.06;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.5;
+
+  function makeGlowTexture(){
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    g.addColorStop(0.0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.3, 'rgba(255,255,255,0.55)');
+    g.addColorStop(0.6, 'rgba(255,255,255,0.15)');
+    g.addColorStop(1.0, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    const t = new THREE.CanvasTexture(c);
+    t.needsUpdate = true;
+    return t;
+  }
+  const glowTex = makeGlowTexture();
+
+  // Nexus
+  {
+    const NX = new THREE.Vector3(0, 0, -14);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 24), new THREE.MeshBasicMaterial({color:0xffffff}));
+    core.position.copy(NX); scene.add(core);
+    const halo1 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 32, 24), new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false}));
+    halo1.position.copy(NX); scene.add(halo1);
+    const halo2 = new THREE.Mesh(new THREE.SphereGeometry(2.0, 32, 24), new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.18, blending:THREE.AdditiveBlending, depthWrite:false}));
+    halo2.position.copy(NX); scene.add(halo2);
+    const nexusLight = new THREE.PointLight(0xffffff, 2.5, 30);
+    nexusLight.position.copy(NX); scene.add(nexusLight);
+
+    const fCanvas = document.createElement('canvas');
+    fCanvas.width = 1024; fCanvas.height = 192;
+    const fctx = fCanvas.getContext('2d');
+    fctx.clearRect(0, 0, 1024, 192);
+    fctx.fillStyle = 'rgba(255,255,255,0.95)';
+    fctx.font = 'italic 74px "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif';
+    fctx.textAlign = 'center';
+    fctx.textBaseline = 'middle';
+    fctx.fillText('Ω  =  Ω  ⊕  ε(Ω)   ·   ε  ≢  0', 512, 96);
+    const fTex = new THREE.CanvasTexture(fCanvas);
+    fTex.needsUpdate = true;
+    const fMat = new THREE.SpriteMaterial({map: fTex, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending});
+    const formulaSprite = new THREE.Sprite(fMat);
+    formulaSprite.position.copy(NX);
+    formulaSprite.scale.set(2.4, 0.45, 1);
+    scene.add(formulaSprite);
+  }
+
+  scene.add(new THREE.AmbientLight(0x4a6a90, 0.6));
+  const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(10, 15, 10); scene.add(key);
+  const rim = new THREE.DirectionalLight(0x88b8ff, 0.4); rim.position.set(-15, -5, -10); scene.add(rim);
+
+  const rig = new THREE.Group();
+  rig.rotation.x = -Math.PI/2;
+  rig.position.set(0, 0, -14);
+  scene.add(rig);
+
+  // --- Orb swirls at the Nexus (inner & outer halo spheres) ---
+  function makeOrbSwirl(radius, count, orbitSpeed, color, size) {
+    const positions = new Float32Array(count * 3);
+    const thetaArr = new Float32Array(count);
+    const yArr = new Float32Array(count);
+    const rArr = new Float32Array(count);
+    const spdArr = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      thetaArr[i] = Math.random() * Math.PI * 2;
+      yArr[i] = (Math.random() * 2 - 1) * radius * 0.9;
+      const maxR = Math.sqrt(Math.max(0, radius * radius - yArr[i] * yArr[i]));
+      rArr[i] = maxR * (0.5 + Math.random() * 0.5);
+      spdArr[i] = orbitSpeed * (0.75 + Math.random() * 0.5);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      size: size || 0.05, map: glowTex, color,
+      transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    });
+    const pts = new THREE.Points(geom, mat);
+    pts.position.set(0, 0, -14);
+    scene.add(pts);
+    return { positions, thetaArr, yArr, rArr, spdArr, geom };
+  }
+  const BASE_ORB_SPEED = 0.045;
+  const innerOrbSwirl = makeOrbSwirl(0.75, 320, BASE_ORB_SPEED,       0xffffff, 0.055);
+  const outerOrbSwirl = makeOrbSwirl(1.80, 198, BASE_ORB_SPEED / phi, 0xffffff, 0.05);
+
+  function updateOrbSwirl(sw) {
+    const { positions, thetaArr, yArr, rArr, spdArr, geom } = sw;
+    for (let i = 0; i < thetaArr.length; i++) {
+      thetaArr[i] += spdArr[i];
+      const r = rArr[i];
+      positions[i*3]     = r * Math.cos(thetaArr[i]);
+      positions[i*3+1]   = yArr[i];
+      positions[i*3+2]   = r * Math.sin(thetaArr[i]);
+    }
+    geom.attributes.position.needsUpdate = true;
+  }
+
+  // --- PARTICLE-STREAM FIGURE-8 LOOPS ---
+  function makeLoopStream(opts) {
+    const { pathFn, perpAxis, count, color, parent, flowSpeed, tubeR, size,
+            flipAxis, flipRate, center } = opts;
+    const positions = new Float32Array(count * 3);
+    const uArr   = new Float32Array(count);
+    const vArr   = new Float32Array(count);
+    const uJit   = new Float32Array(count);
+    const vSp    = new Float32Array(count);
+    const rJ     = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      uArr[i] = Math.random();
+      vArr[i] = Math.random() * Math.PI * 2;
+      uJit[i] = 0.75 + Math.random() * 0.5;
+      vSp[i]  = 0.02 + Math.random() * 0.04;
+      rJ[i]   = 0.4 + Math.random() * 0.9;
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      size: size || 0.08, map: glowTex, color,
+      transparent: true, opacity: 1.0,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    });
+    const pts = new THREE.Points(geom, mat);
+    parent.add(pts);
+    return {
+      positions, uArr, vArr, uJit, vSp, rJ,
+      pathFn, perpAxis, flowSpeed, tubeR, geom,
+      flipAxis, flipRate, flipAngle: opts.initialFlipAngle || 0,
+      center: center || new THREE.Vector3(0, 0, 0),
+      precessionAxis: opts.precessionAxis || new THREE.Vector3(0, 1, 0),
+      mat,
+    };
+  }
+
+  const _p0 = new THREE.Vector3(), _p1 = new THREE.Vector3();
+  function pathTangent(pathFn, u){
+    const e = 0.001;
+    const a = pathFn((u + 1 - e) % 1, _p0);
+    const b = pathFn((u + e) % 1, _p1);
+    return _tmpTan.subVectors(b, a).normalize();
+  }
+  const _tmpTan = new THREE.Vector3();
+  const _tmpNorm = new THREE.Vector3();
+
+  const _streamQ = new THREE.Quaternion();
+  const _streamV = new THREE.Vector3();
+  const _precessionQ = new THREE.Quaternion();
+  const _axialQ = new THREE.Quaternion();
+  const _AXIAL_AXIS = new THREE.Vector3(0, 1, 0);
+  let precessionAngle = 0;
+  function updateStream(stream){
+    const { positions, uArr, vArr, uJit, vSp, rJ, pathFn, perpAxis, flowSpeed,
+            tubeR, geom, flipAxis, flipRate, center } = stream;
+    _precessionQ.setFromAxisAngle(stream.precessionAxis, precessionAngle);
+    const N = uArr.length;
+    const _pos = new THREE.Vector3();
+    for (let i = 0; i < N; i++){
+      uArr[i] = (uArr[i] + flowSpeed * uJit[i] + 1) % 1;
+      vArr[i] += vSp[i];
+      pathFn(uArr[i], _pos);
+      const tan = pathTangent(pathFn, uArr[i]);
+      _tmpNorm.crossVectors(perpAxis, tan).normalize();
+      const r = tubeR * rJ[i];
+      const cv = Math.cos(vArr[i]), sv = Math.sin(vArr[i]);
+      const lx = _pos.x + r * (cv * _tmpNorm.x + sv * perpAxis.x) - center.x;
+      const ly = _pos.y + r * (cv * _tmpNorm.y + sv * perpAxis.y) - center.y;
+      const lz = _pos.z + r * (cv * _tmpNorm.z + sv * perpAxis.z) - center.z;
+      _streamV.set(lx, ly, lz).applyQuaternion(stream.dynamicsQ).applyQuaternion(_precessionQ);
+      positions[i*3]   = _streamV.x + center.x;
+      positions[i*3+1] = _streamV.y + center.y;
+      positions[i*3+2] = _streamV.z + center.z;
+    }
+    geom.attributes.position.needsUpdate = true;
+  }
+
+  // --- Loop path functions ---
+  const A = 5.0;
+  const BIG_A = 7.0;
+
+  function smallAt(u, out){
+    const t = u * Math.PI*2;
+    const s = Math.sin(t), c = Math.cos(t);
+    const d = 1 + s*s;
+    return (out || new THREE.Vector3()).set(0, A*c/d, A*s*c/d);
+  }
+  function smallAtPerp(u, out){
+    const t = u * Math.PI*2;
+    const s = Math.sin(t), c = Math.cos(t);
+    const d = 1 + s*s;
+    return (out || new THREE.Vector3()).set(A*c/d, A*s*c/d, 0);
+  }
+  function bigAt(u, out){
+    const t = u * Math.PI*2;
+    const s = Math.sin(t), c = Math.cos(t);
+    const d = 1 + s*s;
+    return (out || new THREE.Vector3()).set(0, BIG_A*s*c/d, -14 - BIG_A*c/d);
+  }
+  function bigAtPerp(u, out){
+    const t = u * Math.PI*2;
+    const s = Math.sin(t), c = Math.cos(t);
+    const d = 1 + s*s;
+    return (out || new THREE.Vector3()).set(BIG_A*c/d, 0, -14 + BIG_A*s*c/d);
+  }
+  const HUGE_A = 11.0;
+  function hugeAtPerp(u, out){
+    const t = u * Math.PI*2;
+    const s = Math.sin(t), c = Math.cos(t);
+    const d = 1 + s*s;
+    return (out || new THREE.Vector3()).set(HUGE_A*c/d, 0, -14 + HUGE_A*s*c/d);
+  }
+  const GIGA_A = 14.0;
+  function gigaAtPerp(u, out){
+    const t = u * Math.PI*2;
+    const s = Math.sin(t), c = Math.cos(t);
+    const d = 1 + s*s;
+    return (out || new THREE.Vector3()).set(GIGA_A*c/d, 0, -14 + GIGA_A*s*c/d);
+  }
+
+  // --- FIGURE-EIGHT FIELD DYNAMICS (golden-ratio brightness decay, half-speed outer, randomized axes) ---
+  const TWO_PI = Math.PI * 2;
+  function seededRandom(seed = 2026) {
+    let s = seed >>> 0;
+    return function () {
+      s = (1664525 * s + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  }
+  function initializeFigureEightDynamics(streams, options = {}) {
+    const {
+      baseSpeed = 0.8,
+      baseBrightness = 1.0,
+      minBrightness = 0.015,
+      axisWobble = 0.12,
+      seed = 2026,
+      layerOf = (s, i) => i,
+    } = options;
+    const rand = seededRandom(seed);
+    const Y_AXIS = new THREE.Vector3(0, 1, 0);
+    // One shared phase per shell preserves the evenly spaced figure-eight offsets.
+    const shellPhases = new Map();
+    const dynamics = streams.map((s, i) => {
+      const layer = layerOf(s, i);
+      const brightness = Math.max(minBrightness, baseBrightness / Math.pow(phi, layer));
+      const speed = baseSpeed / Math.pow(2, layer);
+      // Keep all loops within a shell rotating together as a coherent arrangement.
+      const direction = layer % 2 === 0 ? 1 : -1;
+      if (!shellPhases.has(layer)) shellPhases.set(layer, rand() * TWO_PI);
+      const startAngle = shellPhases.get(layer);
+      // Preserve independent random axes, but avoid uncontrolled full-sphere tilts.
+      const axisTilt = new THREE.Vector3(
+        (rand() * 2 - 1) * 0.10,
+        1,
+        (rand() * 2 - 1) * 0.10
+      ).normalize();
+      const wobblePhaseX = rand() * TWO_PI;
+      const wobblePhaseZ = rand() * TWO_PI;
+      const wobbleFreqX = 0.07 + rand() * 0.12;
+      const wobbleFreqZ = 0.09 + rand() * 0.13;
+      if (s.mat && 'opacity' in s.mat) {
+        s.mat.transparent = true;
+        s.mat.opacity *= brightness;
+      }
+      s.dynamicsQ = new THREE.Quaternion();
+      return { speed, direction, brightness, startAngle, axisTilt, wobblePhaseX, wobblePhaseZ, wobbleFreqX, wobbleFreqZ };
+    });
+    // Independent full 360-degree rotations around ALL THREE local axes.
+    // The initial evenly spaced offset remains an explicit Y-axis rotation.
+    // Multiplying X, Y and Z quaternions gives genuine three-dimensional tumbling,
+    // not merely a slightly tilted single-axis spin.
+    const X_AXIS = new THREE.Vector3(1, 0, 0);
+    const Z_AXIS = new THREE.Vector3(0, 0, 1);
+    const _qX = new THREE.Quaternion();
+    const _qY = new THREE.Quaternion();
+    const _qZ = new THREE.Quaternion();
+    const _qBase = new THREE.Quaternion();
+    const _qTumble = new THREE.Quaternion();
+    // Reproducible, independent axis rates. Ratios are constant across shells
+    // so every outer shell has half its predecessor's base rotation rate.
+    dynamics.forEach(d => {
+      d.xRate = 0.72 + rand() * 0.22;
+      d.zRate = 0.43 + rand() * 0.28;
+      d.xPhase = rand() * TWO_PI;
+      d.zPhase = rand() * TWO_PI;
+      d.axisModPhase = rand() * TWO_PI;
+    });
+    function update(timeSeconds) {
+      streams.forEach((s, i) => {
+        const d = dynamics[i];
+        const t = d.direction * d.speed * timeSeconds;
+        // Keep the evenly distributed figure-eight offsets intact at t=0.
+        _qBase.setFromAxisAngle(Y_AXIS, s.flipAngle + d.startAngle);
+        // All three angles run continuously through repeated full revolutions.
+        // Gentle smooth phase modulation makes orientations nonidentical.
+        const mod = axisWobble * Math.sin(
+          timeSeconds * d.wobbleFreqX + d.axisModPhase
+        );
+        _qY.setFromAxisAngle(Y_AXIS, t);
+        _qX.setFromAxisAngle(X_AXIS, d.xPhase + d.xRate * t + mod);
+        _qZ.setFromAxisAngle(Z_AXIS,
+          d.zPhase + d.zRate * t +
+          axisWobble * Math.sin(timeSeconds * d.wobbleFreqZ + d.wobblePhaseZ)
+        );
+        _qTumble.copy(_qY).multiply(_qX).multiply(_qZ);
+        s.dynamicsQ.copy(_qBase).multiply(_qTumble);
+      });
+    }
+    return { update, dynamics };
+  }
+  const _clock = new THREE.Clock();
+  let simTime = 0;
+
+  const centerNex = new THREE.Vector3(0, 0, -14);
+  const centerOrigin = new THREE.Vector3(0, 0, 0);
+  const streams = [
+    // PURPLE — L shell (8 electrons)
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: 0,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 1 / 4,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 2 / 4,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 3 / 4,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 4 / 4,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 5 / 4,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 6 / 4,
+    }),
+    makeLoopStream({
+      pathFn: bigAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 6400, color: 0xc084fc, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.13, size: 0.105,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**3),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 7 / 4,
+    }),
+  ];
+  // GREEN — M shell (18 e⁻)
+  for (let i = 0; i < 18; i++) {
+    streams.push(makeLoopStream({
+      pathFn: hugeAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 4000, color: 0x22C55E, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.12, size: 0.1,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**4),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 2 * i / 18,
+    }));
+  }
+  // ORANGE — N shell (8 e⁻)
+  for (let i = 0; i < 8; i++) {
+    streams.push(makeLoopStream({
+      pathFn: gigaAtPerp,   perpAxis: new THREE.Vector3(0, 1, 0),
+      count: 5000, color: 0xf97316, parent: scene,
+      flowSpeed: -BASE_FLOW, tubeR: 0.14, size: 0.12,
+      flipAxis: new THREE.Vector3(1, 0, 0),
+      flipRate: BASE_TUMBLE * (-1 / phi**5),
+      center: centerNex, precessionAxis: new THREE.Vector3(0, 1, 0),
+      initialFlipAngle: Math.PI * 2 * i / 8,
+    }));
+  }
+
+  const fieldDynamics = initializeFigureEightDynamics(streams, {
+    baseSpeed: 0.8,
+    baseBrightness: 1.5,
+    minBrightness: 0.015,
+    axisWobble: 0.12,
+    seed: 2026,
+    layerOf: (s) => {
+      const c = s.mat.color.getHex();
+      if (c === 0xffffff) return 0;
+      if (c === 0xc084fc) return 1;
+      if (c === 0x22C55E) return 2;
+      return 3;
+    },
+  });
+  // Boost orange loop speed by 25%; increase its axis-wobble turns/twists by 50%
+  streams.forEach((s, i) => {
+    if (s.mat.color.getHex() === 0xf97316) {
+      fieldDynamics.dynamics[i].speed *= 1.25;
+      fieldDynamics.dynamics[i].wobbleFreqX *= 1.5;
+      fieldDynamics.dynamics[i].wobbleFreqZ *= 1.5;
+      s.mat.opacity *= 1.25;
+    }
+  });
+
+  addEventListener('resize', () => {
+    cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if (introT0 === null) introT0 = performance.now();
+    const introT = Math.min((performance.now() - introT0) / INTRO_MS, 1);
+    if (introT < 1) {
+      const e = 1 - Math.pow(1 - introT, 3);
+      cam.position.lerpVectors(CAM_START, CAM_END, e);
+    }
+    controls.update();
+
+    updateOrbSwirl(innerOrbSwirl);
+    updateOrbSwirl(outerOrbSwirl);
+    precessionAngle += PRECESSION_RATE;
+    simTime = _clock.getElapsedTime();
+    fieldDynamics.update(simTime);
+    for (const s of streams) updateStream(s);
+
+    renderer.render(scene, cam);
+  }
+  animate();
+})();
+</script>
+
+</body></html>
